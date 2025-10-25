@@ -6,10 +6,35 @@
 
 using namespace std;
 
+//put these in a namespace
 ofstream file;
+int airDensity=1; //will upate later with actual values
+int dustDensity=2; // 2g / cm^3
 
-float dxdt(float x){
-    return 0.1*x;
+//radius will be in cm
+//time step will be in second
+//temperature will be in Kelvin
+//current altitude will be in ... 
+
+//will update the three functions 
+float dragCoeff(){
+    return 1.0;
+}
+float radius(){
+    return 1.0;
+}
+float surfaceArea(){
+    return 1.0;
+}
+float humidity(){
+    return 1.0;
+}
+float altitude(){
+    return 1.0;
+}
+
+float dvdt(float v, float alpha, float beta){
+    return -alpha * (0.5 * airDensity * pow(v, 2) * dragCoeff() * surfaceArea() - beta*humidity());
 }
 
 void adamsBashforth(pair<float, float>& p, float step, int tStart, int n){
@@ -24,12 +49,17 @@ void adamsBashforth(pair<float, float>& p, float step, int tStart, int n){
     }
 }
 
+void particle(){
+    //combine all functions above in this particle function
+}
+
 int main(){
     int n = 60;
     int tStart = 2000;
     int tEnd = 2020;
     float step = (tEnd-tStart)/float(n);
 
+    //velocity
     pair<float, float> p;
     p.first = 6;
     p.second = p.first + step/2*(3*dxdt(p.first));
