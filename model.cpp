@@ -3,28 +3,60 @@
 #include <cmath>
 #include <algorithm>
 #include <fstream>
+#include <random>
+#include <numbers>
+#include <array>
 
 using namespace std;
 
-//put these in a namespace
-ofstream file;
-int airDensity=1; //will upate later with actual values
-int dustDensity=2; // 2g / cm^3
+//these are most commonly used parameters
+namespace params{
+    ofstream fileV;
+    ofstream fileP;
+    int airDensity=1;
+    int dustDensity=2;  //2g/cm^3
+    float alpha=0.5;
+    float beta=1.0;
+    float radius=1e-6;       //1 micrometer
+    int temp;
+    int altitude;
+    default_random_engine generator;
+}
 
-//radius will be in cm
-//time step will be in second
-//temperature will be in Kelvin
-//current altitude will be in ... 
+//this indicates coordinates for position of particle
+struct pos3{
+    float x;
+    float y;
+    float z;
+
+    pos3 operator+(const pos3& other) const{
+        return {x + other.x, y + other.y, z + other.z};
+    }
+    pos3 operator-(const pos3& other) const{
+        return {x - other.x, y - other.y, z - other.z};
+    }
+    pos3 operator*(float s) const{
+        return {x*s, y*s, z*s};
+    }
+    void factor(float f){
+        float sum = sqrt(pow(x,2) + pow(y,2) + pow(z,2));
+        x*=f/sum;
+        y*=f/sum;
+        z*=f/sum;
+    }
+};
 
 //will update the three functions 
 float dragCoeff(){
-    return 1.0;
+    return 0.5;
 }
-float radius(){
-    return 1.0;
+//will figure out radius once i have input from johny
+float radius(float mass){
+    float volume = mass/params::dustDensity;
+    return cbrt(0.75 * volume / M_PI);
 }
-float surfaceArea(){
-    return 1.0;
+float surfaceArea(float radius){
+    return 4 * M_PI * pow(radius, 2);
 }
 float humidity(){
     return 1.0;
@@ -32,20 +64,54 @@ float humidity(){
 float altitude(){
     return 1.0;
 }
-
-float dvdt(float v, float alpha, float beta){
-    return -alpha * (0.5 * airDensity * pow(v, 2) * dragCoeff() * surfaceArea() - beta*humidity());
+float diffusionCoeff(){
+    return 1.0;
 }
 
-void adamsBashforth(pair<float, float>& p, float step, int tStart, int n){
+//dvdt is m/s
+float dvdt(float v, float alpha, float beta){
+    return -alpha * (0.5 * params::airDensity * pow(v, 2) * dragCoeff() * 
+        surfaceArea(params::radius) - beta*humidity());
+}
+
+//normal_distribution(mean, stdv)
+pos3 drdt(float diffusionCoeff, float velocity){
+    normal_distribution<float> dist(0, 2*diffusionCoeff);
+    pos3 r;
+    r.x = dist(params::generator);
+    r.y = dist(params::generator);
+    r.z = abs(dist(params::generator));
+
+    r.factor(velocity);
+
+    //cout<<r.x<<" "<<r.y<<" "<<r.z<<endl;
+    return r;
+}
+
+//edit this as so to take in function as parameter
+void adamsBashforth(pair<float, float>& velocity, pair<pos3, pos3> position, float step, int tStart, int n){
     for(int i=1; i<n; i++){
         float t = tStart + step*i;
-        float updateP = p.second + step/2 * (3*dxdt(p.second) - dxdt(p.first));
-        
-        p.first = p.second;
-        p.second = updateP;
 
-        file<<t<<","<<p.second<<endl;
+        //velocity
+        float updateV = velocity.second + 
+            step*0.5 * (3*dvdt(velocity.second, params::alpha, params::beta) - 
+            dvdt(velocity.first, params::alpha, params::beta));
+        
+        velocity.first = velocity.second;
+        velocity.second = updateV;
+
+        params::fileV<<t<<","<<updateV<<endl;
+
+        //position
+        pos3 updateP = position.second + 
+            (drdt(2, velocity.second)*3 - drdt(2, velocity.first)) *step*0.5;
+
+        position.first = position.second;
+        position.second = updateP;
+
+        params::fileP<<t<<","<<updateP.x<<","<<updateP.y<<","<<updateP.z<<endl;
+
     }
 }
 
@@ -60,18 +126,27 @@ int main(){
     float step = (tEnd-tStart)/float(n);
 
     //velocity
-    pair<float, float> p;
-    p.first = 6;
-    p.second = p.first + step/2*(3*dxdt(p.first));
+    pair<float, float> velocity;
+    velocity.first = 50;
+    velocity.second = velocity.first + step/2*(3*dvdt(velocity.first, 1.0, 1.0));
 
-    file.open("results.txt");
-    file<<"time,value"<<endl;
-    file<<tStart<<","<<p.first<<endl;
+    params::fileV.open("results/velocity.txt");
+    params::fileV<<"time,value"<<endl;
+    params::fileV<<tStart<<","<<velocity.first<<endl;
     tStart+=step;
-    file<<tStart<<","<<p.second<<endl;
+    params::fileV<<tStart<<","<<velocity.second<<endl;
 
-    adamsBashforth(p, step, tStart, n);
-    file.close();
+    //position
+    pair<pos3, pos3> position;
+    position.first = {0,0,0};
+    position.second = {10,10,10};
+
+    params::fileP.open("results/position.txt");
+    params::fileP<<"time,x,y,z"<<endl;
+
+    //running simulation...
+    adamsBashforth(velocity, position, step, tStart, n);
+    params::fileV.close();
 
     return 0;
 }
