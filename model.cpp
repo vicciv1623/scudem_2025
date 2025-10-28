@@ -14,14 +14,18 @@ namespace params{
     ofstream fileV;
     ofstream fileP;
     ofstream fileM;
-    int airDensity=1;
-    int dustDensity=2e6;       //2000000g/m^3
-    float alpha=0.5;
-    float beta=1.0;
+
+    const int airDensity=1;
+    const int dustDensity=2e3;       //2000 kg/m^3
+    const float alpha=0.5;
+    const float beta=1.0;
+    const float terminalVelocity=70;
+
     float radius=1e-6;       //1 micrometer
-    int temp;                //kelvin
+    float temp;                //kelvin
     int altitude=100;        //100 meters
-    float terminalVelocity;
+    float airViscosity;
+    float diffusionCoeff;
     
     unsigned seed=time(0);
     default_random_engine generator(seed);
@@ -56,28 +60,32 @@ struct pos3{
 float dragCoeff(){
     return 0.5;
 }
-//will figure out radius once i have input from johny
-void radius(float mass){
+void upRadius(float mass){
     float volume = mass/params::dustDensity;
     params::radius = cbrt(0.75 * volume / M_PI);
 }
-float surfaceArea(float radius){
-    return 4 * M_PI * pow(radius, 2);
+float surfaceArea(){
+    return 4 * M_PI * pow(params::radius, 2);
 }
 float humidity(){
     return 1.0;
 }
-void altitude(pos3 p){
+void upAltitude(pos3 p){
     params::altitude -= p.z;
 }
-float diffusionCoeff(){
-    return 1.0;
+void upAirViscosity(){
+    //Sutherland's law
+    params::airViscosity = 1.716e-5 * pow(params::temp/273, 1.5) * 384 / (params::temp + 111);
+}
+void upDiffusionCoeff(){
+    //Stoke-Einstein equation
+    params::diffusionCoeff = 1.38e-23 * params::temp / (6 * M_PI * params::airViscosity * params::radius);
 }
 
 //dvdt is m/s
 float dvdt(float v, float alpha, float beta){
     return -alpha * (0.5 * params::airDensity * pow(v, 2) * dragCoeff() * 
-        surfaceArea(params::radius) - beta*humidity());
+        surfaceArea() - beta*humidity());
 }
 
 //normal_distribution(mean, stdv)
@@ -122,11 +130,8 @@ void adamsBashforth(pair<float, float>& velocity, pair<pos3, pos3> position, pai
         params::fileM<<t<<","<<mass.first<<endl;
 
         //miscellaneous
-        radius(mass.second);
-        cout<<params::radius<<endl;
-        altitude(position.second);
-
-
+        upRadius(mass.second);
+        upAltitude(position.second);
     }
 }
 
@@ -152,8 +157,8 @@ int main(){
 
     //mass
     pair<float, float> mass;
-    mass.first = 8.4e-12;
-    mass.second = 8.4e-12;
+    mass.first = 1.7e-14;
+    mass.second = 1.7e-14;
 
     //file output
     params::fileV.open("results/velocity.txt");
@@ -175,7 +180,7 @@ int main(){
     params::fileM<<tStart<<","<<mass.second<<endl;
  
     //running simulation...
-    adamsBashforth(velocity, position, mass, step, tStart, n);
+    //adamsBashforth(velocity, position, mass, step, tStart, n);
     params::fileV.close();
     params::fileP.close();
     params::fileM.close();
