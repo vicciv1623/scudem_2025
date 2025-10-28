@@ -82,12 +82,13 @@ void upDiffusionCoeff(){
     //Stoke-Einstein equation
     params::diffusionCoeff = 1.38e-23 * params::temp / (6 * M_PI * params::airViscosity * params::radius);
 }
+//void upTemp(){}
 
 //differential equations
 //dvdt is m/s
 float dvdt(float v, float alpha, float beta){
-    return -alpha * (0.5 * params::airDensity * pow(v, 2) * dragCoeff() * 
-        surfaceArea() - beta*humidity());
+    return -alpha * 0.5 * params::airDensity * pow(v, 2) * dragCoeff() * 
+        surfaceArea();
 }
 
 //normal_distribution(mean, stdv)
