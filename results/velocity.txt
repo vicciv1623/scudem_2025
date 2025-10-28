@@ -1,4 +1,4 @@
-time,value
+time,velocity
 2000,50
 2000,50.5
 2000.33,50.6667

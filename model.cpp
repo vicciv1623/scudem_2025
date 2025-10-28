@@ -13,14 +13,18 @@ using namespace std;
 namespace params{
     ofstream fileV;
     ofstream fileP;
+    ofstream fileM;
     int airDensity=1;
-    int dustDensity=2;  //2g/cm^3
+    int dustDensity=2e6;       //2000000g/m^3
     float alpha=0.5;
     float beta=1.0;
     float radius=1e-6;       //1 micrometer
-    int temp;
-    int altitude;
-    default_random_engine generator;
+    int temp;                //kelvin
+    int altitude=100;        //100 meters
+    float terminalVelocity;
+    
+    unsigned seed=time(0);
+    default_random_engine generator(seed);
 }
 
 //this indicates coordinates for position of particle
@@ -44,16 +48,18 @@ struct pos3{
         y*=f/sum;
         z*=f/sum;
     }
+    void print(int time){
+        params::fileP<<time<<","<<x<<","<<y<<","<<z<<endl;
+    }
 };
 
-//will update the three functions 
 float dragCoeff(){
     return 0.5;
 }
 //will figure out radius once i have input from johny
-float radius(float mass){
+void radius(float mass){
     float volume = mass/params::dustDensity;
-    return cbrt(0.75 * volume / M_PI);
+    params::radius = cbrt(0.75 * volume / M_PI);
 }
 float surfaceArea(float radius){
     return 4 * M_PI * pow(radius, 2);
@@ -61,8 +67,8 @@ float surfaceArea(float radius){
 float humidity(){
     return 1.0;
 }
-float altitude(){
-    return 1.0;
+void altitude(pos3 p){
+    params::altitude -= p.z;
 }
 float diffusionCoeff(){
     return 1.0;
@@ -89,7 +95,7 @@ pos3 drdt(float diffusionCoeff, float velocity){
 }
 
 //edit this as so to take in function as parameter
-void adamsBashforth(pair<float, float>& velocity, pair<pos3, pos3> position, float step, int tStart, int n){
+void adamsBashforth(pair<float, float>& velocity, pair<pos3, pos3> position, pair<float, float> mass, float step, int tStart, int n){
     for(int i=1; i<n; i++){
         float t = tStart + step*i;
 
@@ -112,6 +118,15 @@ void adamsBashforth(pair<float, float>& velocity, pair<pos3, pos3> position, flo
 
         params::fileP<<t<<","<<updateP.x<<","<<updateP.y<<","<<updateP.z<<endl;
 
+        //mass
+        params::fileM<<t<<","<<mass.first<<endl;
+
+        //miscellaneous
+        radius(mass.second);
+        cout<<params::radius<<endl;
+        altitude(position.second);
+
+
     }
 }
 
@@ -130,23 +145,40 @@ int main(){
     velocity.first = 50;
     velocity.second = velocity.first + step/2*(3*dvdt(velocity.first, 1.0, 1.0));
 
-    params::fileV.open("results/velocity.txt");
-    params::fileV<<"time,value"<<endl;
-    params::fileV<<tStart<<","<<velocity.first<<endl;
-    tStart+=step;
-    params::fileV<<tStart<<","<<velocity.second<<endl;
-
     //position
     pair<pos3, pos3> position;
     position.first = {0,0,0};
     position.second = {10,10,10};
 
+    //mass
+    pair<float, float> mass;
+    mass.first = 8.4e-12;
+    mass.second = 8.4e-12;
+
+    //file output
+    params::fileV.open("results/velocity.txt");
+    params::fileV<<"time,velocity"<<endl;
+    params::fileV<<tStart<<","<<velocity.first<<endl;
+
     params::fileP.open("results/position.txt");
     params::fileP<<"time,x,y,z"<<endl;
+    position.first.print(tStart);
 
+    params::fileM.open("results/mass.txt");
+    params::fileM<<"time,mass"<<endl;
+    params::fileM<<tStart<<","<<mass.first<<endl;
+    
+    tStart+=step;
+
+    params::fileV<<tStart<<","<<velocity.second<<endl;
+    position.second.print(tStart);
+    params::fileM<<tStart<<","<<mass.second<<endl;
+ 
     //running simulation...
-    adamsBashforth(velocity, position, step, tStart, n);
+    adamsBashforth(velocity, position, mass, step, tStart, n);
     params::fileV.close();
+    params::fileP.close();
+    params::fileM.close();
 
     return 0;
 }
