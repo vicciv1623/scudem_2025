@@ -14,8 +14,8 @@ namespace params{
     ofstream fileV;
     ofstream fileP;
     ofstream fileM;
+    ofstream fileO;
 
-    const int airDensity=1;
     const int dustDensity=2e3;       //2000 kg/m^3
     const float alpha=0.5;
     const float beta=1.0;
@@ -26,6 +26,7 @@ namespace params{
     int altitude=100;        //100 meters
     float airViscosity;
     float diffusionCoeff;
+    float airDensity;
     
     unsigned seed=time(0);
     default_random_engine generator(seed);
@@ -60,15 +61,15 @@ struct pos3{
 float dragCoeff(){
     return 0.5;
 }
-void upRadius(float mass){
-    float volume = mass/params::dustDensity;
-    params::radius = cbrt(0.75 * volume / M_PI);
-}
 float surfaceArea(){
     return 4 * M_PI * pow(params::radius, 2);
 }
 float humidity(){
     return 1.0;
+}
+void upRadius(float mass){
+    float volume = mass/params::dustDensity;
+    params::radius = cbrt(0.75 * volume / M_PI);
 }
 void upAltitude(pos3 p){
     params::altitude -= p.z;
@@ -82,6 +83,7 @@ void upDiffusionCoeff(){
     params::diffusionCoeff = 1.38e-23 * params::temp / (6 * M_PI * params::airViscosity * params::radius);
 }
 
+//differential equations
 //dvdt is m/s
 float dvdt(float v, float alpha, float beta){
     return -alpha * (0.5 * params::airDensity * pow(v, 2) * dragCoeff() * 
@@ -132,6 +134,9 @@ void adamsBashforth(pair<float, float>& velocity, pair<pos3, pos3> position, pai
         //miscellaneous
         upRadius(mass.second);
         upAltitude(position.second);
+        //upTemp
+        upAirViscosity();
+        upDiffusionCoeff();
     }
 }
 
@@ -172,6 +177,9 @@ int main(){
     params::fileM.open("results/mass.txt");
     params::fileM<<"time,mass"<<endl;
     params::fileM<<tStart<<","<<mass.first<<endl;
+
+    params::fileO.open("results/other.txt");
+    params::fileO<<"time,radius,temp,alt,air_visc,diff_coeff,air_dens"<<endl;
     
     tStart+=step;
 
@@ -184,6 +192,7 @@ int main(){
     params::fileV.close();
     params::fileP.close();
     params::fileM.close();
+    params::fileO.close();
 
     return 0;
 }
