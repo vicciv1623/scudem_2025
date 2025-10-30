@@ -196,7 +196,7 @@ void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& posi
 }
 
 //user read_csv from readr package in R to read these txt files
-void parseData(vector<vector<float>>& data, ofstream f){
+void parseData(vector<vector<float>>& data, ofstream& f){
     for(int i=0; i<data.size(); i++){
         f<<i<<",";
         for(int j=0; j<data[0].size(); j++){
