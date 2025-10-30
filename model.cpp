@@ -21,9 +21,9 @@ namespace params{
     const float beta=1.0;
     const float terminalVelocity=70;
 
-    float radius;       //1 micrometer
-    float temp;                //kelvin
-    float altitude;        //100 km
+    float radius;                   //m
+    float temp;                     //kelvin
+    float altitude;                 //km
     float airViscosity;
     float diffusionCoeff;
     float airDensity;
@@ -53,8 +53,8 @@ struct pos3{
         y*=f/sum;
         z*=f/sum;
     }
-    void print(int time){
-        params::fileP<<time<<","<<x<<","<<y<<","<<z<<endl;
+    void print(){
+        params::fileP<<x<<"-"<<y<<"-"<<z<<",";
     }
 };
 
@@ -105,14 +105,14 @@ void upAirDensity(){
 }
 
 //differential equations
-//dvdt is m/s
+//dvdt is km/s
 float dvdt(float v, float alpha, float beta, float mass){
-    return -(alpha * 0.5 * params::airDensity * pow(v, 2) * dragCoeff() * surfaceArea() + mass*9.81);
+    return -(alpha*0.5 * params::airDensity * pow(v, 2) * dragCoeff() * surfaceArea() + mass*9.81);
 }
 
 //normal_distribution(mean, stdv)
-pos3 dpdt(float diffusionCoeff, float velocity){
-    normal_distribution<float> dist(0, 2*diffusionCoeff);
+pos3 dpdt(float velocity){
+    normal_distribution<float> dist(0, 2*params::diffusionCoeff);
     pos3 r;
     r.x = dist(params::generator);
     r.y = dist(params::generator);
@@ -139,7 +139,7 @@ void updateParams(float mass, pos3 p){
 
 void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& position, vector<vector<float>>& mass){
     gamma_distribution<float> initVel(15, 0.9);     //this is in km
-    normal_distribution<float> initMass(0.00001, 0.000003);
+    normal_distribution<float> initMass(0.00001, 0.000003);     //this is in kg
 
     float prevV;
     pos3 prevP;
@@ -163,7 +163,7 @@ void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& posi
 
         //second values
         velocity[i].push_back(currV + 1.5*dvdt(currV, params::alpha, params::beta, currM));
-        position[i].push_back(currP + dpdt(params::diffusionCoeff, currV)*1.5);
+        position[i].push_back(currP + dpdt(currV)*1.5);
         //mass
 
         prevV = currV;
@@ -179,7 +179,7 @@ void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& posi
         while(params::altitude > 0){
             //adamsbashforth
             velocity[i].push_back(currV + 0.5*(3*dvdt(currV, params::alpha, params::beta, currM) - dvdt(prevV, params::alpha, params::beta, prevM)));
-            position[i].push_back(currP + (dpdt(params::diffusionCoeff, currV)*3 - dpdt(params::diffusionCoeff, prevV))*0.5);
+            position[i].push_back(currP + (dpdt(currV)*3 - dpdt(prevV))*0.5);
             //mass
 
             prevV = currV;
@@ -195,30 +195,43 @@ void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& posi
     }
 }
 
+//user read_csv from readr package in R to read these txt files
+void parseData(vector<vector<float>>& data, ofstream f){
+    for(int i=0; i<data.size(); i++){
+        f<<i<<",";
+        for(int j=0; j<data[0].size(); j++){
+            f<<data[i][j]<<",";
+        }
+        f<<"\n";
+    }
+}
+void parseData(vector<vector<pos3>>& data){
+    for(int i=0; i<data.size(); i++){
+        params::fileP<<i<<",";
+        for(int j=0; j<data[0].size(); j++){
+            data[i][j].print();
+        }
+        params::fileP<<"\n";
+    }
+}
+
 int main(){
     int n=1;
     vector<vector<float>> velocity(n);
     vector<vector<pos3>> position(n);
     vector<vector<float>> mass(n);
 
-    params::fileV.open("results/velocity.txt");
-    params::fileV<<"time,velocity"<<endl;
-
-    params::fileP.open("results/position.txt");
-    params::fileP<<"time,x,y,z"<<endl;
-
-    params::fileM.open("results/mass.txt");
-    params::fileM<<"time,mass"<<endl;
-    
-    params::fileO.open("results/other.txt");
-    params::fileO<<"time,radius,temp,alt,air_visc,diff_coeff,air_dens"<<endl;
-
     particle(n, velocity, position, mass);
 
+    params::fileV.open("results/velocity.txt");
+    params::fileP.open("results/position.txt");
+    params::fileM.open("results/mass.txt");
+    parseData(velocity, params::fileV);
+    parseData(position);
+    parseData(mass, params::fileM);
     params::fileV.close();
     params::fileP.close();
     params::fileM.close();
-    params::fileO.close();
 
     return 0;
 }
