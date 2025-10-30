@@ -23,7 +23,7 @@ namespace params{
 
     float radius=1e-6;       //1 micrometer
     float temp;                //kelvin
-    int altitude=100;        //100 meters
+    float altitude=100;        //100 meters
     float airViscosity;
     float diffusionCoeff;
     float airDensity;
@@ -62,12 +62,11 @@ float dragCoeff(){
     return 0.5;
 }
 float surfaceArea(){
+    //surface area of a sphere
     return 4 * M_PI * pow(params::radius, 2);
 }
-float humidity(){
-    return 1.0;
-}
 void upRadius(float mass){
+    //volume of a sphere
     float volume = mass/params::dustDensity;
     params::radius = cbrt(0.75 * volume / M_PI);
 }
@@ -83,12 +82,31 @@ void upDiffusionCoeff(){
     params::diffusionCoeff = 1.38e-23 * params::temp / (6 * M_PI * params::airViscosity * params::radius);
 }
 //void upTemp(){}
+void airDensity(){
+    //https://www.grc.nasa.gov/www/k-12/airplane/atmosmet.html
+
+    //trophosphere
+    float pressure;
+    if(params::altitude < 11000){
+        pressure = 101.29 * pow(params::temp/288.08, 5.256);
+    }
+    //lower stratosphere
+    else if(params::altitude < 25000){
+        pressure = 22.65 * exp(1.73 - 0.000157*params::altitude);
+    }
+    //upper stratosphere
+    else{
+        pressure = 2.488 / pow(params::temp/216.6, 11.388);
+        cout<<pressure<<endl;
+    }
+
+    params::airDensity = pressure / (0.2869 * params::temp);
+}
 
 //differential equations
 //dvdt is m/s
 float dvdt(float v, float alpha, float beta){
-    return -alpha * 0.5 * params::airDensity * pow(v, 2) * dragCoeff() * 
-        surfaceArea();
+    return -alpha * 0.5 * params::airDensity * pow(v, 2) * dragCoeff() * surfaceArea();
 }
 
 //normal_distribution(mean, stdv)
