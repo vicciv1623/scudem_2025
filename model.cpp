@@ -82,8 +82,9 @@ void upDiffusionCoeff(){
     params::diffusionCoeff = 1.38e-23 * params::temp / (6 * M_PI * params::airViscosity * params::radius);
 }
 //void upTemp(){}
-void airDensity(){
+void upAirDensity(){
     //https://www.grc.nasa.gov/www/k-12/airplane/atmosmet.html
+    //https://www.eoas.ubc.ca/courses/atsc113/flying/met_concepts/02-met_concepts/02a-std_atmos-P/index.html
 
     //trophosphere
     float pressure;
@@ -105,8 +106,8 @@ void airDensity(){
 
 //differential equations
 //dvdt is m/s
-float dvdt(float v, float alpha, float beta){
-    return -alpha * 0.5 * params::airDensity * pow(v, 2) * dragCoeff() * surfaceArea();
+float dvdt(float v, float alpha, float beta, float mass){
+    return -(alpha * 0.5 * params::airDensity * pow(v, 2) * dragCoeff() * surfaceArea() + mass*9.81);
 }
 
 //normal_distribution(mean, stdv)
@@ -123,91 +124,97 @@ pos3 drdt(float diffusionCoeff, float velocity){
     return r;
 }
 
-//edit this as so to take in function as parameter
-void adamsBashforth(pair<float, float>& velocity, pair<pos3, pos3> position, pair<float, float> mass, float step, int tStart, int n){
-    for(int i=1; i<n; i++){
-        float t = tStart + step*i;
+float dmdt(float mass){
+    return 3*mass / params::radius; //add drdt??
+}
 
-        //velocity
-        float updateV = velocity.second + 
-            step*0.5 * (3*dvdt(velocity.second, params::alpha, params::beta) - 
-            dvdt(velocity.first, params::alpha, params::beta));
-        
-        velocity.first = velocity.second;
-        velocity.second = updateV;
+void adamsBashforth(pair<float, float>& velocity, pair<pos3, pos3> position, pair<float, float> mass, int t){
+    //velocity
+    float updateV = velocity.second + 
+        0.5 * (3*dvdt(velocity.second, params::alpha, params::beta, mass.second) - 
+        dvdt(velocity.first, params::alpha, params::beta, mass.second));
+    
+    velocity.first = velocity.second;
+    velocity.second = updateV;
 
-        params::fileV<<t<<","<<updateV<<endl;
+    params::fileV<<t<<","<<updateV<<endl;
 
-        //position
-        pos3 updateP = position.second + 
-            (drdt(2, velocity.second)*3 - drdt(2, velocity.first)) *step*0.5;
+    //position
+    pos3 updateP = position.second + 
+        (drdt(2, velocity.second)*3 - drdt(2, velocity.first)) *0.5;
 
-        position.first = position.second;
-        position.second = updateP;
+    position.first = position.second;
+    position.second = updateP;
 
-        params::fileP<<t<<","<<updateP.x<<","<<updateP.y<<","<<updateP.z<<endl;
+    params::fileP<<t<<","<<updateP.x<<","<<updateP.y<<","<<updateP.z<<endl;
 
-        //mass
-        params::fileM<<t<<","<<mass.first<<endl;
+    //mass
+    params::fileM<<t<<","<<mass.first<<endl;
 
-        //miscellaneous
-        upRadius(mass.second);
-        upAltitude(position.second);
-        //upTemp
-        upAirViscosity();
-        upDiffusionCoeff();
-    }
+    //miscellaneous
+    upRadius(mass.second);
+    upAltitude(position.second);
+    //upTemp
+    upAirViscosity();
+    upDiffusionCoeff();
+    upAirDensity();
 }
 
 void particle(){
     //combine all functions above in this particle function
-}
+    gamma_distribution<float> initVel(15, 0.9);     //will scale this *1000
+    normal_distribution<float> initMass(0.00001, 0.000003);
+
+    //initialize values
+    pair<float, float> velocity;
+    pair<pos3, pos3> position;
+    pair<float, float> mass;
+
+    velocity.first = abs(initVel(params::generator));
+    position.first = {0,0,0};
+    mass.first = abs(initMass(params::generator));
+
+    upRadius(mass.first);
+
+    params::fileV<<1<<","<<velocity.first<<endl;   
+    position.first.print(1);
+    params::fileM<<1<<","<<mass.first<<endl;
+
+    velocity.second = velocity.first + 0.5*(3*dvdt(velocity.first, 1.0, 1.0, mass.first));
+    position.second = {10, 10,10};   //fix this
+    mass.second = 1.7e-14;          //fix this
+
+    params::fileV<<2<<","<<velocity.first<<endl;   
+    position.first.print(2);
+    params::fileM<<2<<","<<mass.first<<endl;
+
+    upRadius(mass.second);
+    upAltitude(position.second);
+
+    int t=3;
+    while(params::altitude > 0){
+        adamsBashforth(velocity, position, mass, t);
+        t++;
+    }
+}   
 
 int main(){
-    int n = 60;
-    int tStart = 2000;
-    int tEnd = 2020;
-    float step = (tEnd-tStart)/float(n);
-
-    //velocity
-    pair<float, float> velocity;
-    velocity.first = 50;
-    velocity.second = velocity.first + step/2*(3*dvdt(velocity.first, 1.0, 1.0));
-
-    //position
-    pair<pos3, pos3> position;
-    position.first = {0,0,0};
-    position.second = {10,10,10};
-
-    //mass
-    pair<float, float> mass;
-    mass.first = 1.7e-14;
-    mass.second = 1.7e-14;
-
-    //file output
     params::fileV.open("results/velocity.txt");
     params::fileV<<"time,velocity"<<endl;
-    params::fileV<<tStart<<","<<velocity.first<<endl;
 
     params::fileP.open("results/position.txt");
     params::fileP<<"time,x,y,z"<<endl;
-    position.first.print(tStart);
 
     params::fileM.open("results/mass.txt");
     params::fileM<<"time,mass"<<endl;
-    params::fileM<<tStart<<","<<mass.first<<endl;
-
+    
     params::fileO.open("results/other.txt");
     params::fileO<<"time,radius,temp,alt,air_visc,diff_coeff,air_dens"<<endl;
-    
-    tStart+=step;
 
-    params::fileV<<tStart<<","<<velocity.second<<endl;
-    position.second.print(tStart);
-    params::fileM<<tStart<<","<<mass.second<<endl;
- 
-    //running simulation...
-    //adamsBashforth(velocity, position, mass, step, tStart, n);
+    for(int i=0; i<1; i++){
+        particle();
+    }
+
     params::fileV.close();
     params::fileP.close();
     params::fileM.close();
