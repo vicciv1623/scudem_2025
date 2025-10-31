@@ -19,6 +19,7 @@ namespace params{
     const int dustDensity=2e3;       //2000 kg/m^3
     const float alpha=0.5;
     const float beta=1.0;
+    const float gamma=-1;
     const float terminalVelocity=70;
 
     float radius;                   //m
@@ -125,7 +126,7 @@ pos3 dpdt(float velocity){
 }
 
 float dmdt(float mass){
-    return 3*mass / params::radius; //add drdt??
+    return 3*mass / params::radius * params::gamma; //add drdt??
 }
 
 void updateParams(float mass, pos3 p){
@@ -189,6 +190,10 @@ void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& posi
             currV = velocity[i].back();
             currP = position[i].back();
             currM = mass[i].back();
+
+            if(currM < 0){
+                break;
+            }
 
             updateParams(currM, currP);
         }
