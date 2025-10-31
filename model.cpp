@@ -19,7 +19,7 @@ namespace params{
     const int dustDensity=2e3;       //2000 kg/m^3
     const float alpha=0.5;
     const float beta=1.0;
-    const float gamma=-1;
+    const float gamma=1;
     const float terminalVelocity=70;
 
     float radius;                   //m
@@ -107,8 +107,8 @@ void upAirDensity(){
 
 //differential equations
 //dvdt is km/s
-float dvdt(float v, float alpha, float beta, float mass){
-    return -(alpha*0.5 * params::airDensity * pow(v, 2) * dragCoeff() * surfaceArea() + mass*9.81);
+float dvdt(float v, float mass){
+    return -params::alpha*(0.5 * params::airDensity * pow(v, 2) * dragCoeff() * surfaceArea() + mass*9.81);
 }
 
 //normal_distribution(mean, stdv)
@@ -126,7 +126,7 @@ pos3 dpdt(float velocity){
 }
 
 float dmdt(float mass){
-    return 3*mass / params::radius * params::gamma; //add drdt??
+    return -3*mass / params::radius * params::gamma; //add drdt??
 }
 
 void updateParams(float mass, pos3 p){
@@ -163,7 +163,7 @@ void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& posi
         updateParams(currM, currP);
 
         //second values
-        velocity[i].push_back(currV + 1.5*dvdt(currV, params::alpha, params::beta, currM));
+        velocity[i].push_back(currV + 1.5*dvdt(currV, currM));
         position[i].push_back(currP + dpdt(currV)*1.5);
         //mass
 
@@ -179,7 +179,7 @@ void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& posi
         //rest of the model
         while(params::altitude > 0){
             //adamsbashforth
-            velocity[i].push_back(currV + 0.5*(3*dvdt(currV, params::alpha, params::beta, currM) - dvdt(prevV, params::alpha, params::beta, prevM)));
+            velocity[i].push_back(currV + 0.5*(3*dvdt(currV, currM) - dvdt(prevV, prevM)));
             position[i].push_back(currP + (dpdt(currV)*3 - dpdt(prevV))*0.5);
             //mass
 
