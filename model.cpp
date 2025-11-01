@@ -16,10 +16,9 @@ namespace params{
     ofstream fileM;
     ofstream fileO;
 
-    const int dustDensity=2e3;       //2000 kg/m^3
-    const float alpha=0.5;
-    const float beta=1.0;
-    const float gamma=1;
+    const int dustDensity=600;       //2000 kg/m^3
+    const float alpha=2e10;
+    const float gamma=1e-9;
     const float terminalVelocity=70;
 
     float radius;                   //m
@@ -55,7 +54,7 @@ struct pos3{
         z*=f/sum;
     }
     void print(){
-        params::fileP<<x<<"-"<<y<<"-"<<z<<",";
+        params::fileP<<x<<":"<<y<<":"<<z<<",";
     }
 };
 
@@ -71,35 +70,37 @@ void upRadius(float mass){
     float volume = mass/params::dustDensity;
     params::radius = cbrt(0.75 * volume / M_PI);
 }
-void upAltitude(pos3 p){
-    params::altitude -= p.z;
+void upAltitude(pos3 diff){
+    params::altitude -= diff.z;
 }
 void upAirViscosity(){
     //Sutherland's law
+    //https://doc.comsol.com/5.5/doc/com.comsol.help.cfd/cfd_ug_fluidflow_high_mach.08.27.html
     params::airViscosity = 1.716e-5 * pow(params::temp/273, 1.5) * 384 / (params::temp + 111);
 }
 void upDiffusionCoeff(){
     //Stoke-Einstein equation
     params::diffusionCoeff = 1.38e-23 * params::temp / (6 * M_PI * params::airViscosity * params::radius);
 }
-//void upTemp(){}
 void upAirDensity(){
     //https://www.grc.nasa.gov/www/k-12/airplane/atmosmet.html
     //https://www.eoas.ubc.ca/courses/atsc113/flying/met_concepts/02-met_concepts/02a-std_atmos-P/index.html
 
     //trophosphere
     float pressure;
-    if(params::altitude < 11000){
+    if(params::altitude < 11){
+        params::temp = 15.04 - 6.49 * params::altitude + 273.15;
         pressure = 101.29 * pow(params::temp/288.08, 5.256);
     }
     //lower stratosphere
-    else if(params::altitude < 25000){
-        pressure = 22.65 * exp(1.73 - 0.000157*params::altitude);
+    else if(params::altitude < 25){
+        params::temp = -56.46 + 273.15;
+        pressure = 22.65 * exp(1.73 - 0.157*params::altitude);
     }
     //upper stratosphere
     else{
+        params::temp = 141.94 + 2.99 * params::altitude;
         pressure = 2.488 / pow(params::temp/216.6, 11.388);
-        cout<<pressure<<endl;
     }
 
     params::airDensity = pressure / (0.2869 * params::temp);
@@ -132,15 +133,23 @@ float dmdt(float mass){
 void updateParams(float mass, pos3 p){
     upRadius(mass);
     upAltitude(p);
-    //upTemp
+    upAirDensity();
     upAirViscosity();
     upDiffusionCoeff();
-    upAirDensity();
+}
+
+void printParams(){
+    cout<<"Printing parameters: "<<params::radius<<" "<<params::temp<<" "<<params::altitude<<" "<<params::airViscosity<<" "<<params::diffusionCoeff<<" "<<params::airDensity<<endl;
+}
+
+void printVars(float velocity, float mass, pos3 position){
+    cout<<"Printing variables: "<<velocity<<" "<<mass<<endl;
+    cout<<"Printing position: "<<position.x<<" "<<position.y<<" "<<position.z<<endl;
 }
 
 void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& position, vector<vector<float>>& mass){
     gamma_distribution<float> initVel(15, 0.9);     //this is in km
-    normal_distribution<float> initMass(0.00001, 0.000003);     //this is in kg
+    normal_distribution<float> initMass(2.5e-15, 1e-16);     //this is in kg
 
     float prevV;
     pos3 prevP;
@@ -162,10 +171,13 @@ void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& posi
         currM = mass[i][0];
         updateParams(currM, currP);
 
+        printParams();
+        printVars(currV, currM, currP);
+
         //second values
         velocity[i].push_back(currV + 1.5*dvdt(currV, currM));
-        position[i].push_back(currP + dpdt(currV)*1.5);
-        //mass
+        position[i].push_back(currP + dpdt(currV));
+        mass[i].push_back(currM + 1.5*dmdt(currM));
 
         prevV = currV;
         prevP = currP;
@@ -174,14 +186,18 @@ void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& posi
         currV = velocity[i][1];
         currP = position[i][1];
         currM = mass[i][1];
-        updateParams(currM, currP);
+        updateParams(currM, currP-prevP);
+
+        printParams();
+        printVars(currV, currM, currP);
 
         //rest of the model
         while(params::altitude > 0){
+            cout<<params::altitude<<endl;
             //adamsbashforth
             velocity[i].push_back(currV + 0.5*(3*dvdt(currV, currM) - dvdt(prevV, prevM)));
-            position[i].push_back(currP + (dpdt(currV)*3 - dpdt(prevV))*0.5);
-            //mass
+            position[i].push_back(currP + dpdt(currV));
+            mass[i].push_back(currM + 0.5*(3*dmdt(currM) - dmdt(prevM)));
 
             prevV = currV;
             prevP = currP;
@@ -195,7 +211,10 @@ void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& posi
                 break;
             }
 
-            updateParams(currM, currP);
+            updateParams(currM, currP-prevP);
+
+            printParams();
+            printVars(currV, currM, currP);
         }
     }
 }
@@ -226,6 +245,7 @@ int main(){
     vector<vector<pos3>> position(n);
     vector<vector<float>> mass(n);
 
+    cout<<"running..."<<endl;
     particle(n, velocity, position, mass);
 
     params::fileV.open("results/velocity.txt");
