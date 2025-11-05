@@ -4,6 +4,7 @@ library(readr)
 library(tidyverse)
 library(rgl)
 library(car)
+library(magick)
 
 #reading velocity
 velocity<-read.csv("velocity.txt", header=FALSE)
@@ -25,36 +26,42 @@ mass<-mass[-1,]
 plot(mass$time, mass$particle1)
 
 #reading position
-position<-read.csv("position.txt", header=FALSE)
+position<-read.csv("../dummy_pos.txt", header=FALSE)
 position<-as_tibble(t(position))
-colnames(position)<-"particle1"
+colnames(position)<-sapply(colnames(position), function(x) paste0("particle", substr(x, 2, nchar(x))))
 position<-position[-nrow(position),]
 position<-position[-1, ]
 position$time<-1:nrow(position)
-position<-position %>%
-  mutate(x = unlist(lapply(str_split(particle1, ":"), `[[`, 1)),
-         y = unlist(lapply(str_split(particle1, ":"), `[[`, 2)),
-         z = unlist(lapply(str_split(particle1, ":"), `[[`, 3)))
-position<-position %>%
-  mutate(x = as.numeric(x),
-         y = as.numeric(y),
-         z = as.numeric(z))
+
+extract_coord<-function(df){
+  df<-df %>%
+    mutate(case)
+    mutate(x = as.numeric(unlist(lapply(str_split(V1, ":"), `[[`, 1))),
+           y = as.numeric(unlist(lapply(str_split(V1, ":"), `[[`, 2))),
+           z = as.numeric(unlist(lapply(str_split(V1, ":"), `[[`, 3))))
+  return (df)
+}
 
 pal<-colorRampPalette(c("red", "blue"))
-position$colors<-pal(length(position$time))
 
-scatter3d(
-  x=position$y, y=position$z, z= position$x,
-  point.col = position$colors,
-  type='s',
-  radius=0.1
-)
+for(time in 1:nrow(position)){
+  temp<-position[time,]
+  temp<-as.data.frame(t(temp)) %>% remove_rownames()
+  temp<-temp %>% filter(nchar(V1) > 0)
+  temp<-temp[-nrow(temp), ,drop=FALSE]
+  temp<-extract_coord(temp)
 
-plot3d(
-  x=position$x,
-  y=position$z,
-  z=position$y,
-  col=position$colors,
-  type="s",
-  radius=1
-)
+  temp$colors<-pal(length(temp$x))
+  print(temp)
+
+  # plot3d(
+  #   x=temp$x,
+  #   y=temp$z,
+  #   z=temp$y,
+  #   col=temp$colors,
+  #   type="s",
+  #   radius=0.5
+  # )
+  # movie3d(spin3d(axis=c(0,0,1), rpm=5), duration=10,
+  #         dir=getwd(), movie="demo.gif")
+}
