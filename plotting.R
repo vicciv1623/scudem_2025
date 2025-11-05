@@ -5,6 +5,7 @@ library(tidyverse)
 library(rgl)
 library(car)
 library(magick)
+library(plotly)
 
 #reading velocity
 velocity<-read.csv("velocity.txt", header=FALSE)
@@ -42,7 +43,6 @@ extract_coord<-function(df){
   return (df)
 }
 
-pal<-colorRampPalette(c("red", "blue"))
 
 for(time in 1:nrow(position)){
   temp<-position[time,]
@@ -54,6 +54,7 @@ for(time in 1:nrow(position)){
   temp$colors<-pal(length(temp$x))
   print(temp)
 
+  # use plotly + ggplot to create 3d graph
   # plot3d(
   #   x=temp$x,
   #   y=temp$z,
@@ -65,3 +66,24 @@ for(time in 1:nrow(position)){
   # movie3d(spin3d(axis=c(0,0,1), rpm=5), duration=10,
   #         dir=getwd(), movie="demo.gif")
 }
+
+#using apply()
+#https://plotly.com/r/animations/
+#https://cran.r-project.org/web/packages/magick/vignettes/intro.html
+
+pal<-colorRampPalette(c("red", "blue"))
+
+extract_coord<-function(row){
+  row<-t(row)
+  row<-row[-nrow(row),,drop=FALSE] %>% as_tibble()
+  row<-row %>%
+    mutate(x = as.numeric(unlist(lapply(str_split(V1, ":"), `[[`, 1))),
+           y = as.numeric(unlist(lapply(str_split(V1, ":"), `[[`, 2))),
+           z = as.numeric(unlist(lapply(str_split(V1, ":"), `[[`, 3))))
+  row$colors<-pal(length(row$x))
+  row$num<-1:nrow(row)
+  return (row)
+}
+
+plot_ly(row, x=~x, y=~y, z=~z, marker = list(color=~time, colorscale="Viridis")) %>%
+  add_markers()
