@@ -5,7 +5,7 @@ library(tidyverse)
 library(rgl)
 library(car)
 library(magick)
-library(plotly)
+#library(plotly)
 library(RColorBrewer)
 library(plot3D)
 
@@ -65,3 +65,10 @@ extract_coord<-function(row){
 for(i in 1:nrow(position)){
   extract_coord(position[i,])
 }
+
+imgs<-list.files("images", full.names=TRUE)
+img_list<-lapply(imgs, image_read)
+img_joined<-image_join(img_list)
+img_animated<-image_animate(img_joined, fps=10)
+image_write(image=img_animated,
+            path="all_3d.gif")
