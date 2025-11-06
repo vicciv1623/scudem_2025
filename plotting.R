@@ -6,6 +6,8 @@ library(rgl)
 library(car)
 library(magick)
 library(plotly)
+library(RColorBrewer)
+library(plot3D)
 
 #reading velocity
 velocity<-read.csv("velocity.txt", header=FALSE)
@@ -34,56 +36,32 @@ position<-position[-nrow(position),]
 position<-position[-1, ]
 position$time<-1:nrow(position)
 
-extract_coord<-function(df){
-  df<-df %>%
-    mutate(case)
-    mutate(x = as.numeric(unlist(lapply(str_split(V1, ":"), `[[`, 1))),
-           y = as.numeric(unlist(lapply(str_split(V1, ":"), `[[`, 2))),
-           z = as.numeric(unlist(lapply(str_split(V1, ":"), `[[`, 3))))
-  return (df)
-}
-
-
-for(time in 1:nrow(position)){
-  temp<-position[time,]
-  temp<-as.data.frame(t(temp)) %>% remove_rownames()
-  temp<-temp %>% filter(nchar(V1) > 0)
-  temp<-temp[-nrow(temp), ,drop=FALSE]
-  temp<-extract_coord(temp)
-
-  temp$colors<-pal(length(temp$x))
-  print(temp)
-
-  # use plotly + ggplot to create 3d graph
-  # plot3d(
-  #   x=temp$x,
-  #   y=temp$z,
-  #   z=temp$y,
-  #   col=temp$colors,
-  #   type="s",
-  #   radius=0.5
-  # )
-  # movie3d(spin3d(axis=c(0,0,1), rpm=5), duration=10,
-  #         dir=getwd(), movie="demo.gif")
-}
-
 #using apply()
 #https://plotly.com/r/animations/
 #https://cran.r-project.org/web/packages/magick/vignettes/intro.html
 
-pal<-colorRampPalette(c("red", "blue"))
-
+colorsc<-brewer.pal(9, "BuPu")
 extract_coord<-function(row){
+  image_name<-paste0("images/all_3d_",row$time,".png")
   row<-t(row)
-  row<-row[-nrow(row),,drop=FALSE] %>% as_tibble()
+  row<-row[-nrow(row),,drop=FALSE] %>% as.data.frame()
+  print(row)
   row<-row %>%
+    filter(nchar(V1) > 0) %>%
     mutate(x = as.numeric(unlist(lapply(str_split(V1, ":"), `[[`, 1))),
            y = as.numeric(unlist(lapply(str_split(V1, ":"), `[[`, 2))),
            z = as.numeric(unlist(lapply(str_split(V1, ":"), `[[`, 3))))
   row$colors<-pal(length(row$x))
-  row$num<-1:nrow(row)
-  return (row)
+
+  png(image_name, width=800, height=800)
+  scatter3D(row$x, row$y, row$z, type="s", col=colorRampPalette(colorsc)(100),
+            xlim=c(-100,100), ylim=c(-100,100), zlim=c(0,100),
+            bty="b2", alpha=1, pch=19, ticktype="detailed",
+            colkey=FALSE)
+  dev.off()
 }
 
-plot_ly(row, x=~x, y=~y, z=~z, marker = list(color=~time, colorscale="Viridis")) %>%
-  add_markers()
+#apply(position, 1, extract_coord)
+for(i in 1:nrow(position)){
+  extract_coord(position[i,])
+}
