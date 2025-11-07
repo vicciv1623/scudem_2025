@@ -17,7 +17,7 @@ namespace params{
     ofstream fileO;
 
     const int dustDensity=600;       //2000 kg/m^3
-    const float alpha=2e10;
+    const float alpha=8e10;
     const float gamma=1e-9;
     const float terminalVelocity=70;
 
@@ -88,8 +88,9 @@ void upAirDensity(){
 
     //trophosphere
     float pressure;
-    if(params::altitude < 11){
-        params::temp = 15.04 - 6.49 * params::altitude + 273.15;
+    if(params::altitude <= 12){
+        //params::temp = 15.04 - 6.49 * params::altitude + 273.15;
+        params::temp = 288.15 - 6.25*params::altitude;
         pressure = 101.29 * pow(params::temp/288.08, 5.256);
     }
     //lower stratosphere
@@ -97,9 +98,17 @@ void upAirDensity(){
         params::temp = -56.46 + 273.15;
         pressure = 22.65 * exp(1.73 - 0.157*params::altitude);
     }
+    else if(params::altitude < 50){
+        params::temp = 194.2 + 30*params::altitude/19;
+        pressure = 22.65 * exp(1.73 - 0.157*params::altitude);
+    }
     //upper stratosphere
+    else if(params::altitude < 80){
+        params::temp = 423.15 - 3*params::altitude;
+        pressure = 2.488 / pow(params::temp/216.6, 11.388);
+    }
     else{
-        params::temp = 141.94 + 2.99 * params::altitude;
+        params::temp = 2.56*params::altitude - 22;
         pressure = 2.488 / pow(params::temp/216.6, 11.388);
     }
 
@@ -161,18 +170,18 @@ void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& posi
 
     for(int i=0; i<n; i++){
         //first values
+        params::altitude = 700;
         velocity[i].push_back(abs(initVel(params::generator)));
         position[i].push_back({0, 0, 0});
         mass[i].push_back(abs(initMass(params::generator)));
-        params::altitude = 100;
 
         currV = velocity[i][0];
         currP = position[i][0];
         currM = mass[i][0];
         updateParams(currM, currP);
 
-        printParams();
-        printVars(currV, currM, currP);
+        //printParams();
+        //printVars(currV, currM, currP);
 
         //second values
         velocity[i].push_back(currV + 1.5*dvdt(currV, currM));
@@ -188,12 +197,12 @@ void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& posi
         currM = mass[i][1];
         updateParams(currM, currP-prevP);
 
-        printParams();
-        printVars(currV, currM, currP);
+        //printParams();
+        //printVars(currV, currM, currP);
 
         //rest of the model
         while(params::altitude > 0){
-            cout<<params::altitude<<endl;
+            //cout<<params::altitude<<endl;
             //adamsbashforth
             velocity[i].push_back(currV + 0.5*(3*dvdt(currV, currM) - dvdt(prevV, prevM)));
             position[i].push_back(currP + dpdt(currV));
@@ -213,8 +222,8 @@ void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& posi
 
             updateParams(currM, currP-prevP);
 
-            printParams();
-            printVars(currV, currM, currP);
+            //printParams();
+            //printVars(currV, currM, currP);
         }
     }
 }
@@ -240,7 +249,7 @@ void parseData(vector<vector<pos3>>& data){
 }
 
 int main(){
-    int n=1;
+    int n=100;
     vector<vector<float>> velocity(n);
     vector<vector<pos3>> position(n);
     vector<vector<float>> mass(n);
