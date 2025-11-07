@@ -261,7 +261,7 @@ void parseData(vector<vector<pos3>>& data){
 }
 
 int main(){
-    int n=2;
+    int n=100;
     vector<vector<float>> velocity(n);
     vector<vector<pos3>> position(n);
     vector<vector<float>> mass(n);
