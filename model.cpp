@@ -28,7 +28,8 @@ namespace params{
     float diffusionCoeff;
     float airDensity;
     
-    unsigned seed=time(0);
+    //unsigned seed=time(0);
+    unsigned seed=1223;
     default_random_engine generator(seed);
 }
 
@@ -147,8 +148,14 @@ void updateParams(float mass, pos3 p){
     upDiffusionCoeff();
 }
 
+void parseParams(){
+    params::fileO<<params::radius<<":"<<params::altitude<<":"<<params::temp<<":"
+    <<params::airDensity<<":"<<params::diffusionCoeff<<":"<<params::airViscosity<<",";
+}
+
 void printParams(){
-    cout<<"Printing parameters: "<<params::radius<<" "<<params::temp<<" "<<params::altitude<<" "<<params::airViscosity<<" "<<params::diffusionCoeff<<" "<<params::airDensity<<endl;
+    cout<<"Printing parameters: "<<params::radius<<" "<<params::temp<<" "<<
+    params::altitude<<" "<<params::airViscosity<<" "<<params::diffusionCoeff<<" "<<params::airDensity<<endl;
 }
 
 void printVars(float velocity, float mass, pos3 position){
@@ -171,6 +178,7 @@ void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& posi
     for(int i=0; i<n; i++){
         //first values
         params::altitude = 700;
+        params::fileO<<i<<",";
         velocity[i].push_back(abs(initVel(params::generator)));
         position[i].push_back({0, 0, 0});
         mass[i].push_back(abs(initMass(params::generator)));
@@ -179,6 +187,7 @@ void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& posi
         currP = position[i][0];
         currM = mass[i][0];
         updateParams(currM, currP);
+        parseParams();
 
         //printParams();
         //printVars(currV, currM, currP);
@@ -196,6 +205,7 @@ void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& posi
         currP = position[i][1];
         currM = mass[i][1];
         updateParams(currM, currP-prevP);
+        parseParams();
 
         //printParams();
         //printVars(currV, currM, currP);
@@ -221,10 +231,12 @@ void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& posi
             }
 
             updateParams(currM, currP-prevP);
+            parseParams();
 
             //printParams();
             //printVars(currV, currM, currP);
         }
+        params::fileO<<"\n";
     }
 }
 
@@ -249,13 +261,15 @@ void parseData(vector<vector<pos3>>& data){
 }
 
 int main(){
-    int n=100;
+    int n=2;
     vector<vector<float>> velocity(n);
     vector<vector<pos3>> position(n);
     vector<vector<float>> mass(n);
 
     cout<<"running..."<<endl;
+    params::fileO.open("results/other.txt");
     particle(n, velocity, position, mass);
+    params::fileO.close();
 
     params::fileV.open("results/velocity.txt");
     params::fileP.open("results/position.txt");
