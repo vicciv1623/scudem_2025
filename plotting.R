@@ -36,7 +36,10 @@ ggplot(velocity_long, aes(x=time, y=v, color=particle)) +
         axis.line.x.top = NULL,
         axis.line.y.left = element_line(color="black"),
         axis.line.y.right = NULL,
-        axis.ticks.y.left = element_blank()
+        axis.ticks.y.left = element_blank(),
+        axis.text = element_text(size=20),
+        axis.title = element_text(size=20),
+        plot.title = element_text(size=20)
         ) +
   labs(title="Change in velocity",
        x="Time",
@@ -73,7 +76,10 @@ ggplot(mass_long, aes(x=time, y=m, color=particle)) +
         axis.line.x.top = NULL,
         axis.line.y.left = element_line(color="black"),
         axis.line.y.right = NULL,
-        axis.ticks.y.left = element_blank()
+        axis.ticks.y.left = element_blank(),
+        axis.title = element_text(size=20),
+        axis.text = element_text(size=20),
+        plot.title = element_text(size=20)
   ) +
   labs(title="Change in mass",
        x="Time",
@@ -130,15 +136,16 @@ for(i in 1:nrow(position)){
 # image_write(image=img_animated,
 #             path="all_3d.gif")
 
-# plotting 2d style
+# plotting 2d velocity vs mass
 combined<-left_join(mass_long, velocity_long, by=c("particle","time"))
+png("Velocity_vs_Mass.png", height=800, width=800)
 ggplot(combined, aes(x=m, y=v, color=particle)) +
   geom_line() +
   scale_x_continuous(expand=c(0,0)) +
   scale_y_continuous(expand=c(0,0)) +
   theme(legend.position="none",
         aspect.ratio=1,
-        panel.background = element_rect(fill="aliceblue"),
+        panel.background = element_rect(fill="ivory"),
         panel.grid.major.x = element_line(color="mediumpurple",
                                           linetype = "dashed"),
         panel.grid.major.y = NULL,
@@ -147,11 +154,17 @@ ggplot(combined, aes(x=m, y=v, color=particle)) +
         axis.line.x.top = NULL,
         axis.line.y.left = element_line(color="black"),
         axis.line.y.right = NULL,
-        axis.ticks.y.left = element_blank()
+        axis.ticks.y.left = element_blank(),
+        axis.title = element_text(size=20),
+        axis.text = element_text(size=20),
+        plot.title = element_text(size=20)
   ) +
   labs(x="Mass",
-       y="Velocity")
+       y="Velocity",
+       title="Velocity vs Mass")
+dev.off()
 
+#plotting 2d bubble plot final locations
 combined<-left_join(combined, position_long, by=c("particle","time"))
 final_logistics<-combined %>% filter(time==max(combined$time))
 final_logistics<-final_logistics %>%
@@ -170,11 +183,44 @@ ggplot(final_logistics, aes(x=x, y=y, size=v, fill=m)) +
         panel.border = element_blank(),
         panel.grid.major = element_line(color="gray"),
         panel.grid.minor = element_line(color="gray"),
-        axis.ticks = element_blank()
+        axis.ticks = element_blank(),
+        axis.text = element_text(size=20),
+        axis.title = element_text(size=20),
+        plot.title = element_text(size=20),
+        legend.text = element_text(size=15),
+        legend.title = element_text(size=15)
         ) +
   labs(x="x position",
        y="y position",
        title="Final Locations of Particles")
+dev.off()
+
+#plotting 2d velocity vs altitude
+combined<-combined %>% mutate(z = as.numeric(unlist(lapply(str_split(p, ":"), `[[`, 3))))
+png("Velocity_vs_dist_trav.png", height=800, width=800)
+ggplot(combined, aes(x=z, y=v, color=particle)) +
+  geom_line() +
+  scale_x_continuous(expand=c(0,0)) +
+  scale_y_continuous(expand=c(0,0)) +
+  theme(legend.position="none",
+        aspect.ratio=1,
+        panel.background = element_rect(fill="ivory"),
+        panel.grid.major.x = element_line(color="mediumpurple",
+                                          linetype = "dashed"),
+        panel.grid.major.y = NULL,
+        panel.grid.minor.y = NULL,
+        axis.line.x.bottom = element_line(color="black"),
+        axis.line.x.top = NULL,
+        axis.line.y.left = element_line(color="black"),
+        axis.line.y.right = NULL,
+        axis.ticks.y.left = element_blank(),
+        axis.title = element_text(size=20),
+        axis.text = element_text(size=20),
+        plot.title = element_text(size=20)
+  ) +
+  labs(x="Distance traveled vertically",
+       y="Velocity",
+       title="Velocity vs Distance traveled")
 dev.off()
 
 #reading other#reading otherparticle

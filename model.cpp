@@ -18,6 +18,7 @@ namespace params{
 
     const int dustDensity=600;       //2000 kg/m^3
     const float alpha=8e10;
+    //const float alpha=8e11;
     const float gamma=1e-9;
     const float terminalVelocity=70;
 
@@ -136,8 +137,9 @@ pos3 dpdt(float velocity){
     return r;
 }
 
-float dmdt(float mass){
+float dmdt(float mass, float velocity){
     return -3*mass / params::radius * params::gamma; //add drdt??
+    //return -3*mass / params::radius * 3.45e-1 * params::airDensity * pow(velocity,3);
 }
 
 void updateParams(float mass, pos3 p){
@@ -195,7 +197,7 @@ void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& posi
         //second values
         velocity[i].push_back(currV + 1.5*dvdt(currV, currM));
         position[i].push_back(currP + dpdt(currV));
-        mass[i].push_back(currM + 1.5*dmdt(currM));
+        mass[i].push_back(currM + 1.5*dmdt(currM, currV));
 
         prevV = currV;
         prevP = currP;
@@ -216,7 +218,7 @@ void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& posi
             //adamsbashforth
             velocity[i].push_back(currV + 0.5*(3*dvdt(currV, currM) - dvdt(prevV, prevM)));
             position[i].push_back(currP + dpdt(currV));
-            mass[i].push_back(currM + 0.5*(3*dmdt(currM) - dmdt(prevM)));
+            mass[i].push_back(currM + 0.5*(3*dmdt(currM, currV) - dmdt(prevM, currV)));
 
             prevV = currV;
             prevP = currP;
