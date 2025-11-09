@@ -8,12 +8,13 @@ library(magick)
 #library(plotly)
 library(RColorBrewer)
 library(plot3D)
+library(purrr)
 
 #reading velocity
 velocity<-read.csv("velocity.txt", header=FALSE)
 velocity<-as_tibble(t(velocity))
 colnames(velocity)<-sapply(colnames(velocity), function(x) paste0("particle", substr(x, 2, nchar(x))))
-velocity<-velocity[-nrow(velocity),]
+#velocity<-velocity[-nrow(velocity),]
 velocity$time<-1:nrow(velocity)
 velocity<-velocity[,-20]
 velocity<-velocity[-1,]
@@ -24,7 +25,7 @@ png("velocity.png", width=800, height=800)
 ggplot(velocity_long, aes(x=time, y=v, color=particle)) +
   geom_line() +
   scale_x_continuous(expand=c(0,0)) +
-  scale_y_continuous(expand=c(0,0), limits=c(0, 25)) +
+  scale_y_continuous(expand=c(0,0), limits=c(0,max(velocity_long$v, na.rm=TRUE)+2)) +
   theme(legend.position="none",
         aspect.ratio=1,
         panel.background = element_rect(fill="aliceblue"),
@@ -96,7 +97,14 @@ position<-position[-1, ]
 
 position_long<-position %>%
   pivot_longer(cols=starts_with("particle"), names_to="particle", values_to="p")
-
+position_long<-position_long %>%
+  mutate(x = as.numeric(na_if(str_split_fixed(p, ":", 3)[, 1], "")),
+         y = as.numeric(na_if(str_split_fixed(p, ":", 3)[, 2], "")),
+         z = as.numeric(na_if(str_split_fixed(p, ":", 3)[, 3], "")))
+maxX<-max(position_long$x, na.rm=TRUE)
+maxY<-max(position_long$y, na.rm=TRUE)
+minX<-min(position_long$x, na.rm=TRUE)
+minY<-min(position_long$y, na.rm=TRUE)
 
 #using apply()
 #https://plotly.com/r/animations/
@@ -109,14 +117,14 @@ extract_coord<-function(row){
   row<-row[-nrow(row),,drop=FALSE] %>% as.data.frame()
   row<-row %>%
     filter(nchar(V1) > 0) %>%
-    mutate(x = as.numeric(unlist(lapply(str_split(V1, ":"), `[[`, 1))),
-           y = as.numeric(unlist(lapply(str_split(V1, ":"), `[[`, 2))),
-           z = as.numeric(unlist(lapply(str_split(V1, ":"), `[[`, 3))))
+    mutate(x = as.numeric(na_if(str_split_fixed(p, ":", 3)[, 1], "")),
+           y = as.numeric(na_if(str_split_fixed(p, ":", 3)[, 2], "")),
+           z = as.numeric(na_if(str_split_fixed(p, ":", 3)[, 3], "")))
   row$z<-700-row$z
 
   png(image_name, width=800, height=800)
   scatter3D(row$x, row$y, row$z, type="s", col=colorRampPalette(colorsc)(100),
-            xlim=c(-150,150), ylim=c(-150,150), zlim=c(0,750),
+            xlim=c(minX,maxX), ylim=c(minY,maxY), zlim=c(0,750),
             bty="b2", alpha=1, pch=19, ticktype="detailed",
             colkey=FALSE)
   dev.off()
@@ -125,6 +133,7 @@ extract_coord<-function(row){
 #apply(position, 1, extract_coord)
 for(i in 1:nrow(position)){
   print(i)
+  if(i %in% c(19,20,28,57,72,64)) next
   extract_coord(position[i,])
 }
 
@@ -142,7 +151,7 @@ png("Velocity_vs_Mass.png", height=800, width=800)
 ggplot(combined, aes(x=m, y=v, color=particle)) +
   geom_line() +
   scale_x_continuous(expand=c(0,0)) +
-  scale_y_continuous(expand=c(0,0)) +
+  scale_y_continuous(expand=c(0,0), limits=c(0,max(velocity_long$v, na.rm=TRUE) +1)) +
   theme(legend.position="none",
         aspect.ratio=1,
         panel.background = element_rect(fill="ivory"),
@@ -168,7 +177,7 @@ dev.off()
 combined<-left_join(combined, position_long, by=c("particle","time"))
 final_logistics<-combined %>% filter(time==max(combined$time))
 final_logistics<-final_logistics %>%
-  mutate(x = as.numeric(unlist(lapply(str_split(p, ":"), `[[`, 1))),
+  mutate(x = case_when(nchar()),
          y = as.numeric(unlist(lapply(str_split(p, ":"), `[[`, 2))),
          z = as.numeric(unlist(lapply(str_split(p, ":"), `[[`, 3))))
 
@@ -195,10 +204,11 @@ ggplot(final_logistics, aes(x=x, y=y, size=v, fill=m)) +
        title="Final Locations of Particles")
 dev.off()
 
-#plotting 2d velocity vs altitude
-combined<-combined %>% mutate(z = as.numeric(unlist(lapply(str_split(p, ":"), `[[`, 3))))
-png("Velocity_vs_dist_trav.png", height=800, width=800)
-ggplot(combined, aes(x=z, y=v, color=particle)) +
+#plotting 2d velocity vs altitude & mass v altitude
+combined<-combined %>%
+  mutate(z = as.numeric(na_if(str_split_fixed(p, ":", 3)[, 3], "")))
+png("Mss_vs_dist_trav.png", height=800, width=800)
+ggplot(combined, aes(x=z, y=m, color=particle)) +
   geom_line() +
   scale_x_continuous(expand=c(0,0)) +
   scale_y_continuous(expand=c(0,0)) +
@@ -219,9 +229,11 @@ ggplot(combined, aes(x=z, y=v, color=particle)) +
         plot.title = element_text(size=20)
   ) +
   labs(x="Distance traveled vertically",
-       y="Velocity",
-       title="Velocity vs Distance traveled")
+       y="Mass",
+       title="Mass vs Distance traveled")
 dev.off()
 
 #reading other#reading otherparticle
 other<-read.csv("other.txt", header=FALSE)
+other<-as_tibble(t(other))
+colnames(other)<-sapply(colnames(other), function(x) paste0("particle", substr(x, 2, nchar(x))))

@@ -151,8 +151,7 @@ void updateParams(float mass, pos3 p){
 }
 
 void parseParams(){
-    params::fileO<<params::radius<<":"<<params::altitude<<":"<<params::temp<<":"
-    <<params::airDensity<<":"<<params::diffusionCoeff<<":"<<params::airViscosity<<",";
+    params::fileO<<params::radius<<":"<<params::altitude<<":"<<params::temp<<":"<<params::airDensity<<":"<<params::diffusionCoeff<<":"<<params::airViscosity<<",";
 }
 
 void printParams(){
@@ -228,7 +227,7 @@ void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& posi
             currP = position[i].back();
             currM = mass[i].back();
 
-            if(currM < 0){
+            if(currM < 0 || currV<0){
                 break;
             }
 
@@ -246,7 +245,7 @@ void particle(int n, vector<vector<float>>& velocity, vector<vector<pos3>>& posi
 void parseData(vector<vector<float>>& data, ofstream& f){
     for(int i=0; i<data.size(); i++){
         f<<i<<",";
-        for(int j=0; j<data[0].size(); j++){
+        for(int j=0; j<data[i].size(); j++){
             f<<data[i][j]<<",";
         }
         f<<"\n";
@@ -255,7 +254,7 @@ void parseData(vector<vector<float>>& data, ofstream& f){
 void parseData(vector<vector<pos3>>& data){
     for(int i=0; i<data.size(); i++){
         params::fileP<<i<<",";
-        for(int j=0; j<data[0].size(); j++){
+        for(int j=0; j<data[i].size(); j++){
             data[i][j].print();
         }
         params::fileP<<"\n";
