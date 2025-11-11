@@ -120,7 +120,7 @@ void upAirDensity(){
 //differential equations
 //dvdt is km/s
 float dvdt(float v, float mass){
-    return -params::alpha*(0.5 * params::airDensity * pow(v, 2) * dragCoeff() * surfaceArea() + mass*9.81);
+    return -params::alpha*(0.5 * params::airDensity * pow(v, 2) * dragCoeff() * surfaceArea() - mass*9.81);
 }
 
 //normal_distribution(mean, stdv)

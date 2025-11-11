@@ -18,6 +18,44 @@ colnames(velocity)<-sapply(colnames(velocity), function(x) paste0("particle", su
 velocity$time<-1:nrow(velocity)
 velocity<-velocity[,-20]
 velocity<-velocity[-1,]
+velocity<-velocity %>% select(-c("particle19", "particle28", "particle57", "particle72", "particle64"))
+velocity<-velocity %>% select(-c("particle11"))
+
+v_fl<-sapply(velocity, function(col) {
+  # remove missing values
+  non_na <- col[!is.na(col)]
+  c(first = non_na[1], last = tail(non_na, 1))
+})
+v_fl<-data.frame(
+  column = colnames(v_fl),
+  first = v_fl["first", ],
+  last  = v_fl["last", ]
+)
+v_fl<-v_fl[-nrow(v_fl),]
+v_fl<-v_fl %>% filter(!column %in% c("particle36", "particle100", "particle53"))
+png("finalv_vs_initv.png", height=800, width=800)
+p<-ggplot(v_fl, aes(x=first, y=last, color=column)) +
+  geom_point() +
+  theme(legend.position = "none",
+        aspect.ratio=1,
+        panel.background = element_rect(fill="lavenderblush"),
+        panel.grid.major.y = NULL,
+        panel.grid.minor.y = NULL,
+        axis.line.x.bottom = element_line(color="black"),
+        axis.line.x.top = NULL,
+        axis.line.y.left = element_line(color="black"),
+        axis.line.y.right = NULL,
+        axis.ticks.y.left = element_blank(),
+        axis.text = element_text(size=20),
+        axis.title = element_text(size=20),
+        plot.title = element_text(size=20)
+  ) +
+  labs(x="Initial velocity (km/s)",
+       y="Final velocity (km/s)",
+       title="Final Velocity vs Inital Velocity")
+print(p)
+dev.off()
+
 
 velocity_long<-velocity %>%
   pivot_longer(cols=starts_with("particle"), names_to="particle", values_to="v")
@@ -43,8 +81,8 @@ ggplot(velocity_long, aes(x=time, y=v, color=particle)) +
         plot.title = element_text(size=20)
         ) +
   labs(title="Change in velocity",
-       x="Time",
-       y="Velocity")
+       x="Time (s)",
+       y="Velocity (km/s)")
 dev.off()
 
 #reading mass
@@ -58,6 +96,43 @@ mass<-mass[,-c(19,20,28)]
 mass<-mass %>% select(-"particle57")
 mass<-mass %>% select(-"particle72")
 mass<-mass %>% select(-"particle64")
+mass<-mass %>% select(-"particle11")
+
+m_fl<-sapply(mass, function(col) {
+  # remove missing values
+  non_na <- col[!is.na(col)]
+  c(first = non_na[1], last = tail(non_na, 1))
+})
+m_fl<-data.frame(
+  column = colnames(m_fl),
+  first = m_fl["first", ],
+  last  = m_fl["last", ]
+)
+m_fl<-m_fl[-nrow(m_fl),]
+v_fl<-v_fl %>% filter(!column %in% c("particle36", "particle100", "particle53"))
+
+png("finalm_vs_initm.png", height=800, width=800)
+p<-ggplot(m_fl, aes(x=first, y=last, color=column)) +
+  geom_point() +
+  theme(legend.position = "none",
+        aspect.ratio=1,
+        panel.background = element_rect(fill="lavenderblush"),
+        panel.grid.major.y = NULL,
+        panel.grid.minor.y = NULL,
+        axis.line.x.bottom = element_line(color="black"),
+        axis.line.x.top = NULL,
+        axis.line.y.left = element_line(color="black"),
+        axis.line.y.right = NULL,
+        axis.ticks.y.left = element_blank(),
+        axis.text = element_text(size=20),
+        axis.title = element_text(size=20),
+        plot.title = element_text(size=20)
+  ) +
+  labs(x="Initial mass (kg)",
+       y="Final mass (kg)",
+       title="Final Mass vs Inital Mass")
+print(p)
+dev.off()
 
 mass_long<-mass %>%
   pivot_longer(cols=starts_with("particle"), names_to="particle", values_to="m")
@@ -83,8 +158,8 @@ ggplot(mass_long, aes(x=time, y=m, color=particle)) +
         plot.title = element_text(size=20)
   ) +
   labs(title="Change in mass",
-       x="Time",
-       y="Mass")
+       x="Time (s)",
+       y="Mass (kg)")
 dev.off()
 
 #reading position
@@ -94,6 +169,7 @@ colnames(position)<-sapply(colnames(position), function(x) paste0("particle", su
 position$time<-1:nrow(position)
 position<-position[-nrow(position),]
 position<-position[-1, ]
+position<-position %>% select(-c("particle19", "particle11", "particle28", "particle57", "particle72", "particle64"))
 
 position_long<-position %>%
   pivot_longer(cols=starts_with("particle"), names_to="particle", values_to="p")
@@ -117,9 +193,9 @@ extract_coord<-function(row){
   row<-row[-nrow(row),,drop=FALSE] %>% as.data.frame()
   row<-row %>%
     filter(nchar(V1) > 0) %>%
-    mutate(x = as.numeric(na_if(str_split_fixed(p, ":", 3)[, 1], "")),
-           y = as.numeric(na_if(str_split_fixed(p, ":", 3)[, 2], "")),
-           z = as.numeric(na_if(str_split_fixed(p, ":", 3)[, 3], "")))
+    mutate(x = as.numeric(na_if(str_split_fixed(V1, ":", 3)[, 1], "")),
+           y = as.numeric(na_if(str_split_fixed(V1, ":", 3)[, 2], "")),
+           z = as.numeric(na_if(str_split_fixed(V1, ":", 3)[, 3], "")))
   row$z<-700-row$z
 
   png(image_name, width=800, height=800)
@@ -168,47 +244,61 @@ ggplot(combined, aes(x=m, y=v, color=particle)) +
         axis.text = element_text(size=20),
         plot.title = element_text(size=20)
   ) +
-  labs(x="Mass",
-       y="Velocity",
+  labs(x="Mass (kg)",
+       y="Velocity (km/s)",
        title="Velocity vs Mass")
 dev.off()
 
-#plotting 2d bubble plot final locations
-combined<-left_join(combined, position_long, by=c("particle","time"))
-final_logistics<-combined %>% filter(time==max(combined$time))
-final_logistics<-final_logistics %>%
-  mutate(x = case_when(nchar()),
-         y = as.numeric(unlist(lapply(str_split(p, ":"), `[[`, 2))),
-         z = as.numeric(unlist(lapply(str_split(p, ":"), `[[`, 3))))
+#plotting 2d bubble plot locations
+maxM<-max(combined$m, na.rm=TRUE)
+minM<-min(combined$m, na.rm=TRUE)
+maxV<-max(combined$v, na.rm=TRUE)
+minV<-min(combined$v, na.rm=TRUE)
 
-png("final_logistics.png", width=800, height=800)
-ggplot(final_logistics, aes(x=x, y=y, size=v, fill=m)) +
-  geom_point(alpha=0.5, shape=21, color="black") +
-  scale_size(range=c(0.1, 10), name="Velocity (km/s)") +
-  scale_fill_gradient(high="blue", low="purple", name="Mass (kg)") +
-  theme(aspect.ratio = 1,
-        axis.line = element_blank(),
-        panel.background = element_blank(),
-        panel.border = element_blank(),
-        panel.grid.major = element_line(color="gray"),
-        panel.grid.minor = element_line(color="gray"),
-        axis.ticks = element_blank(),
-        axis.text = element_text(size=20),
-        axis.title = element_text(size=20),
-        plot.title = element_text(size=20),
-        legend.text = element_text(size=15),
-        legend.title = element_text(size=15)
-        ) +
-  labs(x="x position",
-       y="y position",
-       title="Final Locations of Particles")
-dev.off()
+combined<-left_join(combined, position_long, by=c("particle","time"))
+extract_2d_bubble<-function(t){
+  image_name<-paste0("images_2/all_2d_",t,".png")
+  df<-combined %>% filter(time == t)
+  print(image_name)
+
+  png(image_name, width=800, height=800)
+  plot<-ggplot(df, aes(x=x, y=y, size=v, fill=m)) +
+    geom_point(alpha=0.5, shape=21, color="black") +
+    scale_size(range=c(0.1, 10),
+               name="Velocity (km/s)", limits=c(minV, maxV)) +
+    scale_fill_gradient(high="blue", low="purple",
+                        name="Mass (kg)", limits=c(minM, maxM)) +
+    scale_x_continuous(limits=c(minX, maxX)) +
+    scale_y_continuous(limits=c(minY, maxY)) +
+    theme(aspect.ratio = 1,
+          axis.line = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          panel.grid.major = element_line(color="gray"),
+          panel.grid.minor = element_line(color="gray"),
+          axis.ticks = element_blank(),
+          axis.text = element_text(size=20),
+          axis.title = element_text(size=20),
+          plot.title = element_text(size=20),
+          legend.text = element_text(size=15),
+          legend.title = element_text(size=15)
+    ) +
+    labs(x="x position",
+         y="y position")
+  print(plot)
+  dev.off()
+}
+
+# have combined ready
+for(i in 1:length(unique(combined$time))){
+  extract_2d_bubble(i)
+}
 
 #plotting 2d velocity vs altitude & mass v altitude
 combined<-combined %>%
   mutate(z = as.numeric(na_if(str_split_fixed(p, ":", 3)[, 3], "")))
-png("Mss_vs_dist_trav.png", height=800, width=800)
-ggplot(combined, aes(x=z, y=m, color=particle)) +
+png("Vel_vs_dist_trav.png", height=800, width=800)
+ggplot(combined, aes(x=z, y=v, color=particle)) +
   geom_line() +
   scale_x_continuous(expand=c(0,0)) +
   scale_y_continuous(expand=c(0,0)) +
@@ -228,9 +318,9 @@ ggplot(combined, aes(x=z, y=m, color=particle)) +
         axis.text = element_text(size=20),
         plot.title = element_text(size=20)
   ) +
-  labs(x="Distance traveled vertically",
-       y="Mass",
-       title="Mass vs Distance traveled")
+  labs(x="Distance traveled vertically (km)",
+       y="Velocity (km/s)",
+       title="Velocity vs Distance traveled")
 dev.off()
 
 #reading other#reading otherparticle
